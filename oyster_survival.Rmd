@@ -52,7 +52,7 @@ For each survey, we noted the condition of each oyster and photographed the plot
 #renv::restore()
 
 #reference for renv workflow: https://rstudio.github.io/renv/articles/renv.html
-my_packages <- c("renv", "easypackages",  "here", "ggthemes", "gridExtra", "tidyverse", "lubridate", "patchwork", "readxl", "survival", "survminer", "ranger", "condSURV", "ggplot2", "gtsummary", "flextable", "dplyr", "forcats") 
+my_packages <- c("renv", "easypackages",  "here", "ggthemes", "gridExtra", "tidyverse", "lubridate", "patchwork", "readxl", "survival", "survminer", "ranger", "condSURV", "ggplot2", "gtsummary", "flextable", "dplyr", "forcats","bookdown") 
 # list of packages to be used in this Rmd file
 easypackages::packages(my_packages) 
 # checks to make sure the packages needed are loaded and asks before installing to confirm install in the console window
