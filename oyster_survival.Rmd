@@ -1,0 +1,257 @@
+---
+title: "SFBay Oyster Survival analyses"
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
+author: "Karina J. Nielsen"
+date: "Last compiled on `r format(Sys.time(), '%d %B %Y')`"
+output:
+   bookdown::html_document2: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  fig.align = "left",
+  fig.width = 8,
+  fig.height = 11,
+  dev = "png",
+  cache = T)
+
+# echo = FALSE means code will not print, by default
+# cache = TRUE saves output results of all chunks so that they do not need to be rerun
+
+
+```
+
+# Question of interest
+<br>
+
+## 
+Do juvenile native oysters in San Francisco Bay survive better when they have rockweed <i> Fucus distichus </i> cover (+/-) Does the effect, if any, vary with tidal height (low vs. high)? 
+
+# Brief Methods Summary
+<br>
+
+## 
+Juvenile <i> Ostrea lurida</i> were super-glued to individually labeled porcelain tiles and attached to rocks in the intertidal zone with marine epoxy putty. We established ten plots of ten oysters each with and without <i> Fucus </i> cover in the high and low intertidal zones.  
+<br>
+
+Oyster plots were established on January 19, 2020. We surveyed the plots every two weeks until May 2, 2020 when we terminated the experiment for all but two plots we inadvertently missed. We terminated these two plots on June 11, 2020. We missed one survey in mid-March due to the pandemic stay at home health order.
+<br>
+
+For each survey, we noted the condition of each oyster and photographed the plots. We noted whether or not the tile, label, or oyster was missing. We also noted if the oyster was alive or if it was dead with some shell remaining. 
+<br>
+
+
+```{r load packages using easypackages, include=FALSE}
+#renv::init() # to initialize a new project-local environment with a private R library
+
+#renv::restore()
+
+#reference for renv workflow: https://rstudio.github.io/renv/articles/renv.html
+my_packages <- c("renv", "easypackages",  "here", "ggthemes", "gridExtra", "tidyverse", "lubridate", "patchwork", "readxl", "survival", "survminer", "ranger", "condSURV", "ggplot2", "gtsummary", "flextable", "dplyr", "forcats") 
+# list of packages to be used in this Rmd file
+easypackages::packages(my_packages) 
+# checks to make sure the packages needed are loaded and asks before installing to confirm install in the console window
+easypackages::libraries(my_packages) # could be used in lieu of packages() if you already have the packages installed
+
+```
+
+
+```{r Confirm working directory for project, include = FALSE}
+here::here() # use this to work with sub-directories less awkwardly and share projects across users/machines more easily.
+```
+
+
+```{r renv, include=FALSE}
+#Run this to update snapshot of packages when you commit the file
+renv::snapshot() 
+#run as needed later in the project to capture required package versions
+#NB must respond and affirms actions in console or you will see the spinning wheel....
+
+```
+
+```{r read in data, include=FALSE}
+
+#read in data from xlsx file sheet
+oyster_survival <- read_excel(here::here("data", "Oyster Survival Experiment Data Entry aug2020.xlsx"), sheet = "data", col_names = TRUE)
+
+
+```
+
+
+# Data Handling
+<br>
+
+## 
+Data were entered in an Excel spreadsheet and then tidied and analyzed using R Statistical Software version 4.0X, R Core Team (2020). Time intervals were calculated to determine days elapsed from the beginning of deployment to the last follow-up time for each individual oyster. The data were right-censored unless a dead oyster (shell present) was observed. 
+
+## Survival Curves
+<br>
+
+We used the survival package Therneau T (2020) to calculate survival curves with the Kaplan-Meier method. A log-rank chi-squared test was used to assess differences among the curves. We also fit Cox proportional hazards regression model.
+
+<br>
+
+
+```{r wranglin, include=FALSE}
+
+
+# reworking plot name
+# reclassified as character for categorical analysis
+# renamed to avoid conflating with ggplot
+
+oyster_survival$plot <- as.character(oyster_survival$plot)
+
+oyster_survival <-  rename(oyster_survival, oyst_plot = plot)
+
+
+oyster_survival$zone <- factor(oyster_survival$zone, levels = c("L", "H"))
+oyster_survival$fucus <- factor(oyster_survival$fucus, levels = c("F", "NF"))
+
+
+oyster_survival$zone <- fct_recode(oyster_survival$zone, low = "L", high = "H")
+oyster_survival$fucus <- fct_recode(oyster_survival$fucus, bare = "NF", fucus = "F")
+
+
+
+# Calculate days of oyster survival in new variable lifetime
+# end date is last day the oyster was observed, not the day it was missing
+
+oyster_survival <-  mutate(oyster_survival, lifetime = as.numeric(difftime(oyster_survival$end, oyster_survival$deploy, units = "days")))
+
+#head(oyster_survival)
+
+# create variable to filter out surviving oysters
+
+oyster_survival <- mutate(oyster_survival, present = if_else(status == "Z", 1, 0))
+
+
+
+
+
+
+```
+
+```{r censoring, include = FALSE}
+
+oyster_survival <-  rename(oyster_survival, field_stat = status)
+
+oyster_survival <- mutate(oyster_survival, status = if_else(field_stat == "D", 1, 0))
+
+```
+
+```{r km_model}
+# see: https://www.emilyzabor.com/tutorials/survival_analysis_in_r_tutorial.html
+# see: https://raw.githubusercontent.com/rstudio/cheatsheets/master/survminer.pdf
+
+#K-M
+
+fit_a <- survfit(Surv(lifetime, status) ~ zone + fucus, data = oyster_survival)
+# table <- ggsurvtable(fit_a, data = oyster_survival, color = "strata", y.text = FALSE)
+
+# summary(fit_a)
+
+# survdiff(Surv(lifetime, status) ~ zone + fucus, data = oyster_survival)
+
+p1 <- ggsurvplot(
+    fit = fit_a,
+    xlab = "Days",
+    ylab = "Overall survival probability (%)",
+    censor = FALSE,
+    pval = TRUE,
+    fun = "pct",
+    risk.table = TRUE,
+    risk.table.y.text.col = T,
+    risk.table.y.text = FALSE,
+    ncensor.plot = TRUE,
+    ggtheme = theme_minimal(),
+    size = 1.5,
+    palette = c("steelblue4","steelblue1", "darkorange4", "darkorange"),
+    legend = "top",
+    legend.title = "",
+    legend.labs = c("low zone + fucus", "low zone", "high zone + fucus", "high zone")
+)
+
+p1
+```
+
+
+```{r cox_model}
+
+# Cox
+
+f2 <- coxph(Surv(lifetime, status) ~ zone * fucus, data = oyster_survival)
+summary(f2)
+# ggcoxdiagnostics(f2, type = "deviance")
+f2 %>% 
+  gtsummary::tbl_regression(exp = TRUE) %>% 
+  add_global_p()%>% 
+  bold_labels() %>% 
+  italicize_levels()%>%
+  as_flex_table()
+
+
+```
+
+```{r forest_plot}
+for.plot <- ggforest(f2, data = oyster_survival, main = "Hazard Ratio",   cpositions = c(0.01, 0.1, 0.26), fontsize = 1)
+for.plot
+# ggsave("forest.png", width = 8, height = 8, units = "in", dpi="print")
+```
+
+
+# Citations
+
+## 
+
+  R Core Team (2020). R: A language and
+  environment for statistical computing. R
+  Foundation for Statistical Computing,
+  Vienna, Austria. URL
+  https://www.R-project.org/.
+
+<br>
+
+
+  Hadley Wickham and Jennifer Bryan (2019).
+  readxl: Read Excel Files. R package version
+  1.3.1.
+  https://CRAN.R-project.org/package=readxl
+  
+<br>  
+
+  Hadley Wickham, Romain François, Lionel
+  Henry and Kirill Müller (2020). dplyr: A
+  Grammar of Data Manipulation. R package
+  version 1.0.1.
+  https://CRAN.R-project.org/package=dplyr
+  
+<br>  
+  
+  Garrett Grolemund, Hadley Wickham (2011).
+  Dates and Times Made Easy with lubridate.
+  Journal of Statistical Software, 40(3),
+  1-25. URL http://www.jstatsoft.org/v40/i03/.
+  
+<br>  
+
+  Therneau T (2020). _A Package for Survival
+  Analysis in R_. R package version 3.2-3, <URL:
+  https://CRAN.R-project.org/package=survival>.
+  
+<br>
+
+  Terry M. Therneau, Patricia M. Grambsch
+  (2000). _Modeling Survival Data: Extending the
+  Cox Model_. Springer, New York. ISBN
+  0-387-98784-3.
+
+<br>
+
+  H. Wickham. ggplot2: Elegant Graphics for
+  Data Analysis. Springer-Verlag New York,
+  2016.
