@@ -1,5 +1,5 @@
 ---
-title: "SFBay Oyster Survival analyses"
+title: "SFBay native oyster survival analyses"
 knit: (function(input_file, encoding) {
   out_dir <- 'docs';
   rmarkdown::render(input_file,
@@ -29,25 +29,18 @@ knitr::opts_chunk$set(
 ```
 
 # Question of interest
-<br>
-
-## 
 Do juvenile native oysters in San Francisco Bay survive better when they have rockweed <i> Fucus distichus </i> cover (+/-) Does the effect, if any, vary with tidal height (low vs. high)? 
 
-# Brief Methods Summary
-<br>
-
-## 
+# Methods summary
 Juvenile <i> Ostrea lurida</i> were super-glued to individually labeled porcelain tiles and attached to rocks in the intertidal zone with marine epoxy putty. We established ten plots of ten oysters each with and without <i> Fucus </i> cover in the high and low intertidal zones.  
 <br>
-
 Oyster plots were established on January 19, 2020. We surveyed the plots every two weeks until May 2, 2020 when we terminated the experiment for all but two plots we inadvertently missed. We terminated these two plots on June 11, 2020. We missed one survey in mid-March due to the pandemic stay at home health order.
 <br>
-
 For each survey, we noted the condition of each oyster and photographed the plots. We noted whether or not the tile, label, or oyster was missing. We also noted if the oyster was alive or if it was dead with some shell remaining. 
 <br>
 
-
+Data were entered in an Excel spreadsheet and then tidied and analyzed using R Statistical Software version 4.0X, R Core Team (2020). Time intervals were calculated to determine days elapsed from the beginning of deployment to the last follow-up time for each individual oyster. The data were right-censored unless a dead oyster (shell present) was observed. 
+<br>
 ```{r load packages using easypackages, include=FALSE}
 #renv::init() # to initialize a new project-local environment with a private R library
 
@@ -86,17 +79,8 @@ oyster_survival <- read_excel(here::here("data", "Oyster Survival Experiment Dat
 ```
 
 
-# Data Handling
-<br>
-
-## 
-Data were entered in an Excel spreadsheet and then tidied and analyzed using R Statistical Software version 4.0X, R Core Team (2020). Time intervals were calculated to determine days elapsed from the beginning of deployment to the last follow-up time for each individual oyster. The data were right-censored unless a dead oyster (shell present) was observed. 
-
-## Survival Curves
-<br>
-
+# Survival analyses
 We used the survival package Therneau T (2020) to calculate survival curves with the Kaplan-Meier method. A log-rank chi-squared test was used to assess differences among the curves. We also fit Cox proportional hazards regression model.
-
 <br>
 
 
@@ -147,7 +131,8 @@ oyster_survival <- mutate(oyster_survival, status = if_else(field_stat == "D", 1
 
 ```
 
-```{r km_model, include=TRUE}
+## Kaplan-Meier survivorship analysis
+```{r km_model, include=FALSE}
 # see: https://www.emilyzabor.com/tutorials/survival_analysis_in_r_tutorial.html
 # see: https://raw.githubusercontent.com/rstudio/cheatsheets/master/survminer.pdf
 
@@ -160,6 +145,13 @@ fit_a <- surv_fit(Surv(lifetime, status) ~ zone + fucus, data = oyster_survival)
 
 # survdiff(Surv(lifetime, status) ~ zone + fucus, data = oyster_survival)
 
+
+
+
+```
+
+
+```{r s_plot}
 ggsurvplot(
     fit = fit_a,
     xlab = "Days",
@@ -178,17 +170,15 @@ ggsurvplot(
     legend.title = "",
     legend.labs = c("low zone + fucus", "low zone", "high zone + fucus", "high zone")
 )
-
-
 ```
 
-
-```{r cox_model}
+## Cox proportional hazards analysis
+```{r cox_model, message=FALSE}
 
 # Cox
 
 f2 <- coxph(Surv(lifetime, status) ~ zone * fucus, data = oyster_survival)
-summary(f2)
+#summary(f2)
 # ggcoxdiagnostics(f2, type = "deviance")
 f2 %>% 
   gtsummary::tbl_regression(exp = TRUE) %>% 
