@@ -14,11 +14,13 @@ output:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(
   echo = FALSE,
+  error = TRUE,
   fig.align = "left",
   fig.width = 8,
   fig.height = 11,
   dev = "png",
   cache = T)
+
 
 # echo = FALSE means code will not print, by default
 # cache = TRUE saves output results of all chunks so that they do not need to be rerun
@@ -73,6 +75,7 @@ renv::snapshot()
 #NB must respond and affirms actions in console or you will see the spinning wheel....
 
 ```
+
 
 ```{r read in data, include=FALSE}
 
@@ -144,20 +147,20 @@ oyster_survival <- mutate(oyster_survival, status = if_else(field_stat == "D", 1
 
 ```
 
-```{r km_model}
+```{r km_model, include=TRUE}
 # see: https://www.emilyzabor.com/tutorials/survival_analysis_in_r_tutorial.html
 # see: https://raw.githubusercontent.com/rstudio/cheatsheets/master/survminer.pdf
 
 #K-M
 
-fit_a <- survfit(Surv(lifetime, status) ~ zone + fucus, data = oyster_survival)
+fit_a <- surv_fit(Surv(lifetime, status) ~ zone + fucus, data = oyster_survival)
 # table <- ggsurvtable(fit_a, data = oyster_survival, color = "strata", y.text = FALSE)
 
 # summary(fit_a)
 
 # survdiff(Surv(lifetime, status) ~ zone + fucus, data = oyster_survival)
 
-p1 <- ggsurvplot(
+ggsurvplot(
     fit = fit_a,
     xlab = "Days",
     ylab = "Overall survival probability (%)",
@@ -176,7 +179,7 @@ p1 <- ggsurvplot(
     legend.labs = c("low zone + fucus", "low zone", "high zone + fucus", "high zone")
 )
 
-p1
+
 ```
 
 
