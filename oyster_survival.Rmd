@@ -32,15 +32,14 @@ knitr::opts_chunk$set(
 Do juvenile native oysters in San Francisco Bay survive better when they have rockweed <i> Fucus distichus </i> cover (+/-) Does the effect, if any, vary with tidal height (low vs. high)? 
 
 # Methods summary
-Juvenile <i> Ostrea lurida</i> were super-glued to individually labeled porcelain tiles and attached to rocks in the intertidal zone with marine epoxy putty. We established ten plots of ten oysters each with and without <i> Fucus </i> cover in the high and low intertidal zones.  
-<br>
-Oyster plots were established on January 19, 2020. We surveyed the plots every two weeks until May 2, 2020 when we terminated the experiment for all but two plots we inadvertently missed. We terminated these two plots on June 11, 2020. We missed one survey in mid-March due to the pandemic stay at home health order.
-<br>
-For each survey, we noted the condition of each oyster and photographed the plots. We noted whether or not the tile, label, or oyster was missing. We also noted if the oyster was alive or if it was dead with some shell remaining. 
-<br>
+Juvenile <i> Ostrea lurida</i> were super-glued to individually labeled porcelain tiles and attached to rocks in the intertidal zone with marine epoxy putty. We established ten plots of ten oysters each with and without <i> Fucus </i> cover in the high and low intertidal zones.
+
+Oyster plots were established on January 19, 2020. We surveyed the plots every two weeks until May 2, 2020 when we terminated the experiment for all but two plots we inadvertently missed. We terminated these two plots on June 11, 2020. We missed one survey in mid-March due to the pandemic stay at home health order. 
+
+For each survey, we noted the condition of each oyster and photographed the plots. We noted whether or not the tile, label, or oyster was missing. We also noted if the oyster was alive or if it was dead with some shell remaining.
 
 Data were entered in an Excel spreadsheet and then tidied and analyzed using R Statistical Software version 4.0X, R Core Team (2020). Time intervals were calculated to determine days elapsed from the beginning of deployment to the last follow-up time for each individual oyster. The data were right-censored unless a dead oyster (shell present) was observed. 
-<br>
+
 ```{r load packages using easypackages, include=FALSE}
 #renv::init() # to initialize a new project-local environment with a private R library
 
