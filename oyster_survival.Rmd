@@ -21,10 +21,8 @@ knitr::opts_chunk$set(
   dev = "png",
   cache = T)
 
-
 # echo = FALSE means code will not print, by default
 # cache = TRUE saves output results of all chunks so that they do not need to be rerun
-
 
 ```
 
@@ -62,7 +60,7 @@ here::here() # use this to work with sub-directories less awkwardly and share pr
 
 ```{r renv, include=FALSE}
 #Run this to update snapshot of packages when you commit the file
-renv::snapshot() 
+#renv::snapshot() 
 #run as needed later in the project to capture required package versions
 #NB must respond and affirms actions in console or you will see the spinning wheel....
 
@@ -77,48 +75,149 @@ oyster_survival <- read_excel(here::here("data", "Oyster Survival Experiment Dat
 
 ```
 
-
 # Survival analyses
 We used the survival package Therneau T (2020) to calculate survival curves with the Kaplan-Meier method. A log-rank chi-squared test was used to assess differences among the curves. We also fit Cox proportional hazards regression model.
 <br>
 
-
 ```{r wranglin, include=FALSE}
 
 
-# reworking plot name
-# reclassified as character for categorical analysis
-# renamed to avoid conflating with ggplot
-
-oyster_survival$plot <- as.character(oyster_survival$plot)
-
-oyster_survival <-  rename(oyster_survival, oyst_plot = plot)
-
-
+# defining treatment levels, ordering
 oyster_survival$zone <- factor(oyster_survival$zone, levels = c("L", "H"))
 oyster_survival$fucus <- factor(oyster_survival$fucus, levels = c("F", "NF"))
-
-
 oyster_survival$zone <- fct_recode(oyster_survival$zone, low = "L", high = "H")
 oyster_survival$fucus <- fct_recode(oyster_survival$fucus, bare = "NF", fucus = "F")
 
-
-
 # Calculate days of oyster survival in new variable lifetime
 # end date is last day the oyster was observed, not the day it was missing
-
 oyster_survival <-  mutate(oyster_survival, lifetime = as.numeric(difftime(oyster_survival$end, oyster_survival$deploy, units = "days")))
 
-#head(oyster_survival)
-
-# create variable to filter out surviving oysters
-
-oyster_survival <- mutate(oyster_survival, present = if_else(status == "Z", 1, 0))
 
 
+```
+
+```{r box_plot_wranglin, include=FALSE}
+# reworking plot name
+# reclassified as character for categorical analysis
+# renamed to avoid conflating with ggplot
+oyster_survival$plot <- as.character(oyster_survival$plot)
+oyster_survival <-  rename(oyster_survival, oyst_plot = plot)
+
+# create shade variable to call out shaded plots
+shady_list <- c(41, 42, 38, 37, 35, 33, 29)
+
+oyster_survival <- mutate(oyster_survival,
+                          shade = case_when(
+  oyst_plot == shady_list[1] ~ 1,
+  oyst_plot == shady_list[2] ~ 1,
+  oyst_plot == shady_list[3] ~ 1,
+  oyst_plot == shady_list[4] ~ 1,
+  oyst_plot == shady_list[5] ~ 1,
+  oyst_plot == shady_list[6] ~ 1,
+  oyst_plot == shady_list[7] ~ 1,
+  TRUE ~ 0
+)
+)
+
+# create sun variable to call out sun exposed plots 
+sunny_list <- c(21, 22)
+
+oyster_survival <- mutate(oyster_survival,
+                          sun = case_when(
+  oyst_plot == sunny_list[1] ~ 1,
+  oyst_plot == sunny_list[2] ~ 1,
+  TRUE ~ 0
+)
+)
+
+# create low cover variable to call out plots that lost fucus cover
+
+low_cover_list <- c(14, 29, 39, 40) #plot 40 too but was removed from data since all tiles fell off
+
+oyster_survival <- mutate(oyster_survival,
+                          low_cover = case_when(
+  oyst_plot == low_cover_list[1] ~ 1,
+  oyst_plot == low_cover_list[2] ~ 1,
+  oyst_plot == low_cover_list[3] ~ 1,
+  TRUE ~ 0
+)
+)
+
+# filtered data frame for box plot
+oyster_survival_box <- oyster_survival
+
+# dropping oysters where the whole tile, oyster or label was missing, coded C,A or B status unknown 
+oyster_survival_box  <- mutate(filter(oyster_survival_box, status != "C")) 
+oyster_survival_box  <- mutate(filter(oyster_survival_box, status != "B"))
+oyster_survival_box  <- mutate(filter(oyster_survival_box, status != "A"))
+
+# create dummy variable for surviving oysters
+oyster_survival_box <- mutate(oyster_survival_box, present = if_else(status == "Z", 1, 0))
+
+# creating treatment variable
+oyster_survival_box <- mutate(oyster_survival_box, treatment = paste0(zone,"+",fucus))
+
+#### BOX PLOT DATA WRANGLIN ####
+
+#total oysters in plots. missing tiles and oysters already removed.
+
+tot_by_plot_all <- oyster_survival_box %>%
+  group_by(oyst_plot) %>%
+  summarise(n_tot = n(),
+            trt = first(treatment),
+            shade = first(shade),
+            sun = first(sun),
+            low_cover = first(low_cover)
+            )
+
+# total survivors remaining. missing tiles and oysters already removed
+tot_plot_surv <- oyster_survival_box %>% 
+  filter(status == "Z") %>%
+  group_by(oyst_plot) %>%
+  summarise(n_surv = n(), )
 
 
+box_data <- full_join(tot_by_plot_all, tot_plot_surv, by = "oyst_plot")
 
+box_data$n_surv <- replace_na(box_data$n_surv, 0)
+
+box_data <- mutate(box_data, pct_surv = round((n_surv/n_tot)*100, digits = 1) )
+
+#### Box plot DATA WRANGLIN ####
+
+#total oysters in treatment. missing tiles and oysters already removed.
+
+tot_by_trt <- oyster_survival_box %>% 
+  group_by(treatment) %>% 
+  summarise(n_tot = n(), )
+
+# total survivors remaining. missing tiles and oysters already removed
+tot_surv <- oyster_survival_box %>% 
+  filter(status == "Z")
+
+#total survivors by treatment
+tot_surv <- tot_surv %>% 
+  group_by(treatment) %>% 
+  summarise(n_surv = n())
+
+# #summary statistics
+# # using method from https://www.dummies.com/education/math/statistics/how-to-calculate-the-margin-of-error-for-a-sample-proportion/
+# 
+# bar_data <- bind_cols(tot_by_trt,tot_surv)
+# 
+# bar_data <- rename(bar_data, 
+#                    treatment = treatment...1,
+#                    treatments = treatment...3,
+#                    )
+# 
+# bar_data <- bar_data %>% 
+#   mutate(surv_propotion = n_surv/n_tot,
+#          one_minus_surv_p = 1-surv_propotion,
+#          margin_error_surv_p = sqrt((surv_propotion*one_minus_surv_p/n_tot)),
+#          surv_pct = surv_propotion * 100,
+#          surv_mrg_err_pct = margin_error_surv_p*100
+#          )
+# 
 
 ```
 
@@ -131,6 +230,7 @@ oyster_survival <- mutate(oyster_survival, status = if_else(field_stat == "D", 1
 ```
 
 ## Kaplan-Meier survivorship analysis
+
 ```{r km_model, include=FALSE}
 # see: https://www.emilyzabor.com/tutorials/survival_analysis_in_r_tutorial.html
 # see: https://raw.githubusercontent.com/rstudio/cheatsheets/master/survminer.pdf
@@ -172,6 +272,8 @@ ggsurvplot(
 ```
 
 ## Cox proportional hazards analysis
+### Table
+
 ```{r cox_model, message=FALSE}
 
 # Cox
@@ -186,13 +288,72 @@ f2 %>%
   italicize_levels()%>%
   as_flex_table()
 
-
 ```
 
+### Forest plot
 ```{r forest_plot}
 for.plot <- ggforest(f2, data = oyster_survival, main = "Hazard Ratio",   cpositions = c(0.01, 0.1, 0.26), fontsize = 1)
 for.plot
 # ggsave("forest.png", width = 8, height = 8, units = "in", dpi="print")
 ```
 
+## Oysters with known fates - proportion surviving
+
+For all oysters that had a known fate at the end of the field experiment (i.e., persisted alive until the end, or died, leaving behind some shell on the tile), we calculated the proportion of these that survived in each plot for each of the four unique treatment combinations (zone (low/high) x fucus (+/-)). We present these as box plots. We also indicate the plots in the high zone that appeared to benefit from some shading from adjacent trees at the edge of the upper intertidal zone.
+
+```{r last,   fig.width = 6,  fig.height = 6,}
+
+# last_ones <- ggplot(box_data, aes(x=trt, y=pct_surv, fill=trt)) +
+#    geom_boxplot(alpha=0.3, outlier.shape = NA) +
+#   geom_point(pch = 21,
+#              position = position_jitterdodge(
+#                jitter.height = 2,
+#                jitter.width = 0.5,
+#                seed = 7
+#              )) +
+#   theme_few() +
+#   theme(legend.position = "none") +
+#   labs(x = "Treatment Groups\n High (H) or Low Tidal Zone (L)\n Fucus distichus Cover Present (F) or Absent (NF)",  y = "Percent of Oysters Survived per Replicate") +
+#   ggtitle("Oyster Survival by Treatment")
+# 
+# last_ones
+
+unshaded_df <- box_data %>%
+  filter(shade < 1)
+
+shaded_df <- box_data %>%
+  filter(shade > 0)
+
+
+last_ones_2 <- ggplot(box_data, aes(x=trt, y=pct_surv, fill = trt))+ 
+ geom_boxplot(alpha=0.7, outlier.shape = NA) +
+  geom_point(data = unshaded_df,
+             pch = 21,
+             alpha = 0.7,
+             size = 3,
+             stroke=1,
+             position = position_jitterdodge(
+               jitter.height = 1,
+               jitter.width = 0.5,
+               seed = 7)) +
+  geom_point(data = shaded_df,
+             aes(x = trt, y = pct_surv),
+             color = 'black',
+             pch = 19,
+             size = 3,
+             position = position_jitterdodge(
+               jitter.height = 1,
+               jitter.width = 0.5,
+               seed = 7)) +
+  scale_fill_manual(values=c("darkorange", "darkorange4", "steelblue1","steelblue4"))+
+  scale_shape_manual(values = c(21,24)) +
+  theme_few() +
+  theme(legend.position = "none") +
+  labs(x = "Treatment",  y = "percent surviving (per plot)") +
+  ggtitle("Oyster survival (known fates only)") 
+
+  
+last_ones_2
+
+```
 
