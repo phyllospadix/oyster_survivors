@@ -237,14 +237,12 @@ oyster_survival <- mutate(oyster_survival, status = if_else(field_stat == "D", 1
 
 #K-M
 
-fit_a <- surv_fit(Surv(lifetime, status) ~ zone + fucus, data = oyster_survival)
-# table <- ggsurvtable(fit_a, data = oyster_survival, color = "strata", y.text = FALSE)
+#fit_a <- surv_fit(Surv(lifetime, status) ~ zone + fucus, data = oyster_survival)
+#table <- ggsurvtable(fit_a, data = oyster_survival, color = "strata", y.text = FALSE)
 
-# summary(fit_a)
+# summary(fit_a) # use this to get table of survivorship estimates at every survey point
 
-# survdiff(Surv(lifetime, status) ~ zone + fucus, data = oyster_survival)
-
-
+# survdiff(Surv(lifetime, status) ~ zone + fucus, data = oyster_survival) # chi2 model// V = theoretical variance in O-E, assumed to be chi2
 
 
 ```
